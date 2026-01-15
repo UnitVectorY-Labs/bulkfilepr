@@ -96,7 +96,7 @@ bulkfilepr apply --mode upsert --repo-path README.md --new-file ~/standard/READM
 ### On Non-Default Branch (Dirty Working Tree)
 If you're on a non-default branch AND have uncommitted changes, bulkfilepr exits with a non-zero exit code to prevent data loss.
 
-**Error message**: 
+**Error message**:
 ```
 Error: not on default branch and working tree is dirty: current branch is "feature-branch", expected "main". Please commit or stash your changes
 ```

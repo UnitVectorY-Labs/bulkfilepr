@@ -73,7 +73,7 @@ func (m *MockOperations) BranchExists(name, remote string) (bool, error) {
 	if exists, ok := m.BranchExistsMap[name]; ok {
 		return exists, nil
 	}
-	// Also check remote branch name
+	// Check remote branch reference format (e.g., 'origin/feature-branch')
 	remoteBranch := fmt.Sprintf("%s/%s", remote, name)
 	if exists, ok := m.BranchExistsMap[remoteBranch]; ok {
 		return exists, nil

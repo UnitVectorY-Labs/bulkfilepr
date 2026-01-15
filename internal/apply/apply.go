@@ -57,7 +57,7 @@ func (a *Applier) Run() (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current branch: %w", err)
 	}
-	
+
 	if currentBranch != defaultBranch {
 		// Check if working tree is clean
 		clean, err := a.gitOps.IsWorkingTreeClean()

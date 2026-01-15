@@ -97,6 +97,8 @@ func (r *RealOperations) IsWorkingTreeClean() (bool, error) {
 }
 
 // BranchExists checks if a branch exists locally or on remote.
+// Note: This checks using locally available refs. For remote branches, this
+// requires that refs have been fetched. It will not perform a git fetch.
 func (r *RealOperations) BranchExists(name, remote string) (bool, error) {
 	// First check if branch exists locally
 	_, err := r.runGit("rev-parse", "--verify", name)
@@ -104,7 +106,7 @@ func (r *RealOperations) BranchExists(name, remote string) (bool, error) {
 		return true, nil
 	}
 
-	// Check if branch exists on remote
+	// Check if branch exists on remote (using locally cached remote refs)
 	remoteBranch := fmt.Sprintf("%s/%s", remote, name)
 	_, err = r.runGit("rev-parse", "--verify", remoteBranch)
 	if err == nil {
