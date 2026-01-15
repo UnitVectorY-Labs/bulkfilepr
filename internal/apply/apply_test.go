@@ -260,7 +260,7 @@ func TestApplierDryRun(t *testing.T) {
 	}
 }
 
-func TestApplierNotOnDefaultBranch(t *testing.T) {
+func TestApplierNotOnDefaultBranchButClean(t *testing.T) {
 	tmpDir := t.TempDir()
 	mock := git.NewMockOperations()
 	mock.CurrentBranch = "feature-branch"
@@ -275,10 +275,43 @@ func TestApplierNotOnDefaultBranch(t *testing.T) {
 	}
 
 	applier := NewApplier(cfg, mock, newContent)
+	result, err := applier.Run()
+
+	if err != nil {
+		t.Fatalf("Run() error = %v, expected success when switching from clean non-default branch", err)
+	}
+	if result.Action != "updated" {
+		t.Errorf("Action = %q, want %q", result.Action, "updated")
+	}
+	// Verify that we switched to default branch
+	if len(mock.SwitchedBranches) == 0 {
+		t.Error("Expected branch switch to default branch, but no switch occurred")
+	}
+	if mock.SwitchedBranches[0] != "main" {
+		t.Errorf("Expected switch to main branch, got %q", mock.SwitchedBranches[0])
+	}
+}
+
+func TestApplierNotOnDefaultBranchAndDirty(t *testing.T) {
+	tmpDir := t.TempDir()
+	mock := git.NewMockOperations()
+	mock.CurrentBranch = "feature-branch"
+	mock.IsClean = false
+	newContent := []byte("new content\n")
+
+	cfg := &config.Config{
+		Mode:     config.ModeUpsert,
+		RepoPath: "test/file.txt",
+		NewFile:  "/path/to/new.txt",
+		Repo:     tmpDir,
+		Remote:   "origin",
+	}
+
+	applier := NewApplier(cfg, mock, newContent)
 	_, err := applier.Run()
 
 	if err == nil {
-		t.Error("Run() expected error for not on default branch, got nil")
+		t.Error("Run() expected error for dirty working tree on non-default branch, got nil")
 	}
 }
 
@@ -386,6 +419,44 @@ func TestApplierDraftPR(t *testing.T) {
 	}
 	if !mock.CreatedPRs[0].Draft {
 		t.Error("CreatedPRs[0].Draft = false, want true")
+	}
+}
+
+func TestApplierBranchAlreadyExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	mock := git.NewMockOperations()
+	newContent := []byte("new content\n")
+
+	cfg := &config.Config{
+		Mode:     config.ModeUpsert,
+		RepoPath: "test/file.txt",
+		NewFile:  "/path/to/new.txt",
+		Repo:     tmpDir,
+		Remote:   "origin",
+		Branch:   "existing-branch",
+	}
+
+	// Mark the branch as existing
+	mock.BranchExistsMap["existing-branch"] = true
+
+	applier := NewApplier(cfg, mock, newContent)
+	result, err := applier.Run()
+
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Action != "branch already exists" {
+		t.Errorf("Action = %q, want %q", result.Action, "branch already exists")
+	}
+	if result.BranchName != "existing-branch" {
+		t.Errorf("BranchName = %q, want %q", result.BranchName, "existing-branch")
+	}
+	// Verify no actual operations were performed
+	if len(mock.CreatedBranches) != 0 {
+		t.Errorf("CreatedBranches length = %d, want 0", len(mock.CreatedBranches))
+	}
+	if len(mock.Commits) != 0 {
+		t.Errorf("Commits length = %d, want 0", len(mock.Commits))
 	}
 }
 

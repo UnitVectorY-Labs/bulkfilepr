@@ -52,16 +52,28 @@ func (a *Applier) Run() (*Result, error) {
 	}
 	result.DefaultBranch = defaultBranch
 
-	// Step 2: Verify on default branch
+	// Step 2: Verify on default branch or switch if clean
 	currentBranch, err := a.gitOps.GetCurrentBranch()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current branch: %w", err)
 	}
+
 	if currentBranch != defaultBranch {
-		return nil, fmt.Errorf("not on default branch: current branch is %q, expected %q", currentBranch, defaultBranch)
+		// Check if working tree is clean
+		clean, err := a.gitOps.IsWorkingTreeClean()
+		if err != nil {
+			return nil, fmt.Errorf("failed to check working tree status: %w", err)
+		}
+		if !clean {
+			return nil, fmt.Errorf("not on default branch and working tree is dirty: current branch is %q, expected %q. Please commit or stash your changes", currentBranch, defaultBranch)
+		}
+		// Working tree is clean, switch to default branch
+		if err := a.gitOps.SwitchBranch(defaultBranch); err != nil {
+			return nil, fmt.Errorf("failed to switch to default branch %q: %w", defaultBranch, err)
+		}
 	}
 
-	// Step 3: Verify clean working tree
+	// Step 3: Verify clean working tree (always check after potential branch switch)
 	clean, err := a.gitOps.IsWorkingTreeClean()
 	if err != nil {
 		return nil, fmt.Errorf("failed to check working tree status: %w", err)
@@ -85,13 +97,23 @@ func (a *Applier) Run() (*Result, error) {
 	branchName := a.determineBranchName()
 	result.BranchName = branchName
 
-	// Step 6: Execute update (or report dry-run)
+	// Step 6: Check if branch already exists (idempotency)
+	branchExists, err := a.gitOps.BranchExists(branchName, a.cfg.Remote)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if branch exists: %w", err)
+	}
+	if branchExists {
+		result.Action = "branch already exists"
+		return result, nil
+	}
+
+	// Step 7: Execute update (or report dry-run)
 	if a.cfg.DryRun {
 		result.Action = "would update"
 		return result, nil
 	}
 
-	// Step 7: Create branch
+	// Step 8: Create branch
 	if err := a.gitOps.CreateBranch(branchName); err != nil {
 		return nil, fmt.Errorf("failed to create branch: %w", err)
 	}
@@ -105,31 +127,31 @@ func (a *Applier) Run() (*Result, error) {
 		}
 	}()
 
-	// Step 8: Write file
+	// Step 9: Write file
 	if err := git.WriteFile(a.repoDir, a.cfg.RepoPath, a.newContent); err != nil {
 		updateErr = fmt.Errorf("failed to write file: %w", err)
 		return nil, updateErr
 	}
 
-	// Step 9: Stage file
+	// Step 10: Stage file
 	if err := a.gitOps.AddFile(a.cfg.RepoPath); err != nil {
 		updateErr = fmt.Errorf("failed to stage file: %w", err)
 		return nil, updateErr
 	}
 
-	// Step 10: Commit
+	// Step 11: Commit
 	if err := a.gitOps.Commit(a.cfg.GetCommitMessage()); err != nil {
 		updateErr = fmt.Errorf("failed to commit: %w", err)
 		return nil, updateErr
 	}
 
-	// Step 11: Push
+	// Step 12: Push
 	if err := a.gitOps.Push(a.cfg.Remote, branchName); err != nil {
 		updateErr = fmt.Errorf("failed to push: %w", err)
 		return nil, updateErr
 	}
 
-	// Step 12: Create PR
+	// Step 13: Create PR
 	prURL, err := a.gitOps.CreatePR(defaultBranch, branchName, a.cfg.GetPRTitle(), a.cfg.GetPRBody(), a.cfg.Draft)
 	if err != nil {
 		updateErr = fmt.Errorf("failed to create PR: %w", err)
@@ -138,7 +160,7 @@ func (a *Applier) Run() (*Result, error) {
 	result.PRURL = prURL
 	result.Action = "updated"
 
-	// Step 13: Switch back to default branch (best effort)
+	// Step 14: Switch back to default branch (best effort)
 	_ = a.gitOps.SwitchBranch(defaultBranch)
 
 	return result, nil

@@ -17,6 +17,8 @@ type Operations interface {
 	GetCurrentBranch() (string, error)
 	// IsWorkingTreeClean checks if the working tree is clean (no uncommitted changes).
 	IsWorkingTreeClean() (bool, error)
+	// BranchExists checks if a branch exists locally or on remote.
+	BranchExists(name, remote string) (bool, error)
 	// CreateBranch creates and switches to a new branch.
 	CreateBranch(name string) error
 	// SwitchBranch switches to an existing branch.
@@ -92,6 +94,27 @@ func (r *RealOperations) IsWorkingTreeClean() (bool, error) {
 		return false, fmt.Errorf("failed to check working tree status: %w", err)
 	}
 	return output == "", nil
+}
+
+// BranchExists checks if a branch exists locally or on remote.
+// Note: This checks using locally available refs. For remote branches, this
+// requires that refs have been fetched. It will not perform a git fetch.
+func (r *RealOperations) BranchExists(name, remote string) (bool, error) {
+	// First check if branch exists locally
+	_, err := r.runGit("rev-parse", "--verify", name)
+	if err == nil {
+		return true, nil
+	}
+
+	// Check if branch exists on remote (using locally cached remote refs)
+	remoteBranch := fmt.Sprintf("%s/%s", remote, name)
+	_, err = r.runGit("rev-parse", "--verify", remoteBranch)
+	if err == nil {
+		return true, nil
+	}
+
+	// Branch doesn't exist locally or on remote
+	return false, nil
 }
 
 // CreateBranch creates and switches to a new branch.

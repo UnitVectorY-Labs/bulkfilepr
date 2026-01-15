@@ -7,6 +7,7 @@ type MockOperations struct {
 	DefaultBranch     string
 	CurrentBranch     string
 	IsClean           bool
+	BranchExistsMap   map[string]bool // Map of branch names to whether they exist
 	CreatedBranches   []string
 	SwitchedBranches  []string
 	AddedFiles        []string
@@ -19,6 +20,7 @@ type MockOperations struct {
 	DefaultBranchErr     error
 	CurrentBranchErr     error
 	IsCleanErr           error
+	BranchExistsErr      error
 	CreateBranchErr      error
 	SwitchBranchErr      error
 	AddFileErr           error
@@ -30,10 +32,11 @@ type MockOperations struct {
 // NewMockOperations creates a new MockOperations with default successful behavior.
 func NewMockOperations() *MockOperations {
 	return &MockOperations{
-		DefaultBranch: "main",
-		CurrentBranch: "main",
-		IsClean:       true,
-		PRURLToReturn: "https://github.com/owner/repo/pull/1",
+		DefaultBranch:   "main",
+		CurrentBranch:   "main",
+		IsClean:         true,
+		BranchExistsMap: make(map[string]bool),
+		PRURLToReturn:   "https://github.com/owner/repo/pull/1",
 	}
 }
 
@@ -59,6 +62,23 @@ func (m *MockOperations) IsWorkingTreeClean() (bool, error) {
 		return false, m.IsCleanErr
 	}
 	return m.IsClean, nil
+}
+
+// BranchExists returns whether a branch exists in the mock.
+func (m *MockOperations) BranchExists(name, remote string) (bool, error) {
+	if m.BranchExistsErr != nil {
+		return false, m.BranchExistsErr
+	}
+	// Check if branch exists in the map
+	if exists, ok := m.BranchExistsMap[name]; ok {
+		return exists, nil
+	}
+	// Check remote branch reference format (e.g., 'origin/feature-branch')
+	remoteBranch := fmt.Sprintf("%s/%s", remote, name)
+	if exists, ok := m.BranchExistsMap[remoteBranch]; ok {
+		return exists, nil
+	}
+	return false, nil
 }
 
 // CreateBranch records the created branch.
