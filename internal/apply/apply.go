@@ -96,36 +96,44 @@ func (a *Applier) Run() (*Result, error) {
 		return nil, fmt.Errorf("failed to create branch: %w", err)
 	}
 
+	// Use a cleanup function to switch back to default branch on error
+	var updateErr error
+	defer func() {
+		if updateErr != nil {
+			// Best effort: switch back to default branch on error
+			_ = a.gitOps.SwitchBranch(defaultBranch)
+		}
+	}()
+
 	// Step 8: Write file
 	if err := git.WriteFile(a.repoDir, a.cfg.RepoPath, a.newContent); err != nil {
-		// Best effort: switch back to default branch
-		_ = a.gitOps.SwitchBranch(defaultBranch)
-		return nil, fmt.Errorf("failed to write file: %w", err)
+		updateErr = fmt.Errorf("failed to write file: %w", err)
+		return nil, updateErr
 	}
 
 	// Step 9: Stage file
 	if err := a.gitOps.AddFile(a.cfg.RepoPath); err != nil {
-		_ = a.gitOps.SwitchBranch(defaultBranch)
-		return nil, fmt.Errorf("failed to stage file: %w", err)
+		updateErr = fmt.Errorf("failed to stage file: %w", err)
+		return nil, updateErr
 	}
 
 	// Step 10: Commit
 	if err := a.gitOps.Commit(a.cfg.GetCommitMessage()); err != nil {
-		_ = a.gitOps.SwitchBranch(defaultBranch)
-		return nil, fmt.Errorf("failed to commit: %w", err)
+		updateErr = fmt.Errorf("failed to commit: %w", err)
+		return nil, updateErr
 	}
 
 	// Step 11: Push
 	if err := a.gitOps.Push(a.cfg.Remote, branchName); err != nil {
-		_ = a.gitOps.SwitchBranch(defaultBranch)
-		return nil, fmt.Errorf("failed to push: %w", err)
+		updateErr = fmt.Errorf("failed to push: %w", err)
+		return nil, updateErr
 	}
 
 	// Step 12: Create PR
 	prURL, err := a.gitOps.CreatePR(defaultBranch, branchName, a.cfg.GetPRTitle(), a.cfg.GetPRBody(), a.cfg.Draft)
 	if err != nil {
-		_ = a.gitOps.SwitchBranch(defaultBranch)
-		return nil, fmt.Errorf("failed to create PR: %w", err)
+		updateErr = fmt.Errorf("failed to create PR: %w", err)
+		return nil, updateErr
 	}
 	result.PRURL = prURL
 	result.Action = "updated"

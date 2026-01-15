@@ -1,7 +1,6 @@
 package git
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -174,23 +173,4 @@ func WriteFile(repoDir, filePath string, content []byte) error {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 	return os.WriteFile(fullPath, content, 0644)
-}
-
-// ghRepoViewResponse is the JSON response structure for gh repo view.
-type ghRepoViewResponse struct {
-	DefaultBranchRef struct {
-		Name string `json:"name"`
-	} `json:"defaultBranchRef"`
-}
-
-// ParseDefaultBranchFromJSON parses the default branch from gh repo view JSON output.
-func ParseDefaultBranchFromJSON(jsonData string) (string, error) {
-	var resp ghRepoViewResponse
-	if err := json.Unmarshal([]byte(jsonData), &resp); err != nil {
-		return "", fmt.Errorf("failed to parse JSON: %w", err)
-	}
-	if resp.DefaultBranchRef.Name == "" {
-		return "", fmt.Errorf("default branch name is empty in response")
-	}
-	return resp.DefaultBranchRef.Name, nil
 }
