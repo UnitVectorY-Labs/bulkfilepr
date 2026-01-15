@@ -34,7 +34,9 @@ bulkfilepr apply \
 ## Features
 
 - **Three update modes**: `upsert` (always write), `exists` (update only if file exists), `match` (update only if file matches expected hash)
-- **Safety checks**: Ensures you're on the default branch with a clean working tree
+- **Idempotent operation**: If the target branch already exists, exits successfully (exit code 0) assuming previous successful run
+- **Smart branch handling**: Automatically switches to default branch when on non-default branch with clean working tree
+- **Safety checks**: Ensures you're on the default branch with a clean working tree before making changes
 - **Dry run mode**: Preview changes without making any modifications
 - **Automatic branching**: Creates deterministic branch names based on file content hash
 - **GitHub CLI integration**: Automatically creates pull requests via `gh pr create`

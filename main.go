@@ -182,6 +182,11 @@ func printResult(cfg *config.Config, result *apply.Result) {
 		fmt.Printf("Mode: %s\n", cfg.Mode)
 		fmt.Printf("Action: would update (dry run)\n")
 		fmt.Printf("Branch: %s\n", result.BranchName)
+	case "branch already exists":
+		fmt.Printf("Mode: %s\n", cfg.Mode)
+		fmt.Printf("Action: branch already exists (idempotent - no action taken)\n")
+		fmt.Printf("Branch: %s\n", result.BranchName)
+		fmt.Printf("Reason: branch already exists, assuming previous successful run\n")
 	case "updated":
 		fmt.Printf("Mode: %s\n", cfg.Mode)
 		fmt.Printf("Action: updated\n")
