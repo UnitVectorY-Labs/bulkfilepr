@@ -262,7 +262,7 @@ func TestGetExpectedHashes(t *testing.T) {
 				t.Errorf("GetExpectedHashes() returned %d hashes, want %d", len(result), len(tt.expected))
 			}
 			for i, hash := range result {
-				if i >= len(tt.expected) || hash != tt.expected[i] {
+				if hash != tt.expected[i] {
 					t.Errorf("GetExpectedHashes()[%d] = %q, want %q", i, hash, tt.expected[i])
 				}
 			}
