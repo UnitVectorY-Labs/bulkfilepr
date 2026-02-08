@@ -162,6 +162,7 @@ func printUsage(fs *flag.FlagSet) {
 	fmt.Fprintln(os.Stderr, "  --dry-run             Perform checks only, no changes")
 	fmt.Fprintln(os.Stderr, "  --remote <name>       Git remote name (default: origin)")
 	fmt.Fprintln(os.Stderr, "  --expect-sha256 <hex> Expected SHA-256 (required for match mode)")
+	fmt.Fprintln(os.Stderr, "                        Multiple hashes can be comma-separated")
 	fmt.Fprintln(os.Stderr, "  --version             Print version")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Modes:")
