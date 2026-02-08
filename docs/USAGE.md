@@ -23,7 +23,7 @@ bulkfilepr uses a single `apply` command with various options to control its beh
 | `--draft` | - | No | Create the PR as a draft |
 | `--dry-run` | - | No | Perform checks only, make no actual changes |
 | `--remote` | `<name>` | No | Git remote name to push to (default: `origin`) |
-| `--expect-sha256` | `<hex>` | Conditional | Expected SHA-256 hash (required when `--mode match`) |
+| `--expect-sha256` | `<hex>` | Conditional | Expected SHA-256 hash (required when `--mode match`). Multiple hashes can be comma-separated to match any of them |
 | `--version` | - | No | Print version number and exit |
 
 ## Update Modes
@@ -41,9 +41,9 @@ Only update if the file already exists at the destination path. If the file is m
 **Use case**: Updating existing configuration files without creating them in repositories that don't have them.
 
 ### `match`
-Only update if the file exists AND its SHA-256 hash matches the `--expect-sha256` value. This ensures you only update files at a specific known version.
+Only update if the file exists AND its SHA-256 hash matches one of the values provided in `--expect-sha256`. This ensures you only update files at specific known versions. Multiple comma-separated hashes can be provided to match any of several versions.
 
-**Use case**: Safely updating files when you need to verify they haven't been customized from a known baseline.
+**Use case**: Safely updating files when you need to verify they haven't been customized from known baselines.
 
 **Examples**:
 - `.github/workflows/ci.yml`
@@ -153,7 +153,7 @@ The `--expect-sha256` option has specific interactions with update modes:
 
 When using `--mode match`, you must provide `--expect-sha256` or the command will exit with error code 2 (invalid usage).
 
-**Example**:
+**Single hash example**:
 ```bash
 # This will fail - missing --expect-sha256
 bulkfilepr apply --mode match --repo-path config.yml --new-file ~/config.yml
@@ -161,6 +161,16 @@ bulkfilepr apply --mode match --repo-path config.yml --new-file ~/config.yml
 # This works - hash provided
 bulkfilepr apply --mode match --repo-path config.yml --new-file ~/config.yml \
   --expect-sha256 a1b2c3d4e5f6...
+```
+
+**Multiple hashes example**:
+```bash
+# Match against any of the provided hashes (comma-separated)
+bulkfilepr apply --mode match --repo-path config.yml --new-file ~/config.yml \
+  --expect-sha256 17ca04878ed554fc89bc73332e013fa8528c7999352a7cea17788e48fecabac6,6bbb6e1ef2fbd220c4dc6853dc40d80e1d060b32f3dfae245f2f4dc8858ccfa1
+
+# This allows matching files at either version
+# Useful when you have multiple known valid baseline versions
 ```
 
 ## Exit Codes

@@ -1,6 +1,9 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Mode represents the file update mode for the apply command.
 type Mode string
@@ -79,6 +82,25 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("expect-sha256 is required when mode is 'match'")
 	}
 	return nil
+}
+
+// GetExpectedHashes returns the expected SHA-256 hashes as a slice.
+// It splits the comma-separated hash string into individual hashes.
+func (c *Config) GetExpectedHashes() []string {
+	if c.ExpectSHA256 == "" {
+		return []string{}
+	}
+	
+	// Split by comma and trim whitespace
+	hashes := strings.Split(c.ExpectSHA256, ",")
+	result := make([]string, 0, len(hashes))
+	for _, hash := range hashes {
+		trimmed := strings.TrimSpace(hash)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }
 
 // GetCommitMessage returns the commit message, substituting defaults if necessary.

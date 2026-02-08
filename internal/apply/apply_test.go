@@ -3,6 +3,7 @@ package apply
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/UnitVectorY-Labs/bulkfilepr/internal/config"
@@ -487,3 +488,162 @@ func TestApplierCustomCommitMessage(t *testing.T) {
 		t.Errorf("Commits[0] = %q, want %q", mock.Commits[0], "fix: update workflow")
 	}
 }
+
+func TestApplierMatchModeMultipleHashesFirstMatches(t *testing.T) {
+	tmpDir := t.TempDir()
+	mock := git.NewMockOperations()
+	existingContent := []byte("existing content\n")
+	newContent := []byte("new content\n")
+
+	// Create existing file
+	testDir := filepath.Join(tmpDir, "test")
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatalf("failed to create test dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "file.txt"), existingContent, 0644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	// Calculate the correct hash and create a list with it first
+	expectedHash := hash.SHA256Bytes(existingContent)
+	otherHash := "wronghash123456789"
+
+	cfg := &config.Config{
+		Mode:         config.ModeMatch,
+		RepoPath:     "test/file.txt",
+		NewFile:      "/path/to/new.txt",
+		Repo:         tmpDir,
+		Remote:       "origin",
+		ExpectSHA256: expectedHash + "," + otherHash,
+	}
+
+	applier := NewApplier(cfg, mock, newContent)
+	result, err := applier.Run()
+
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Action != "updated" {
+		t.Errorf("Action = %q, want %q (should match first hash)", result.Action, "updated")
+	}
+}
+
+func TestApplierMatchModeMultipleHashesSecondMatches(t *testing.T) {
+	tmpDir := t.TempDir()
+	mock := git.NewMockOperations()
+	existingContent := []byte("existing content\n")
+	newContent := []byte("new content\n")
+
+	// Create existing file
+	testDir := filepath.Join(tmpDir, "test")
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatalf("failed to create test dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "file.txt"), existingContent, 0644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	// Calculate the correct hash and create a list with it second
+	expectedHash := hash.SHA256Bytes(existingContent)
+	otherHash := "wronghash123456789"
+
+	cfg := &config.Config{
+		Mode:         config.ModeMatch,
+		RepoPath:     "test/file.txt",
+		NewFile:      "/path/to/new.txt",
+		Repo:         tmpDir,
+		Remote:       "origin",
+		ExpectSHA256: otherHash + "," + expectedHash,
+	}
+
+	applier := NewApplier(cfg, mock, newContent)
+	result, err := applier.Run()
+
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Action != "updated" {
+		t.Errorf("Action = %q, want %q (should match second hash)", result.Action, "updated")
+	}
+}
+
+func TestApplierMatchModeMultipleHashesNoneMatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	mock := git.NewMockOperations()
+	existingContent := []byte("existing content\n")
+	newContent := []byte("new content\n")
+
+	// Create existing file
+	testDir := filepath.Join(tmpDir, "test")
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatalf("failed to create test dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "file.txt"), existingContent, 0644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	cfg := &config.Config{
+		Mode:         config.ModeMatch,
+		RepoPath:     "test/file.txt",
+		NewFile:      "/path/to/new.txt",
+		Repo:         tmpDir,
+		Remote:       "origin",
+		ExpectSHA256: "wronghash123456789,anotherwronghash987654321",
+	}
+
+	applier := NewApplier(cfg, mock, newContent)
+	result, err := applier.Run()
+
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Action != "no action taken" {
+		t.Errorf("Action = %q, want %q", result.Action, "no action taken")
+	}
+	if result.NoActionReason == "" {
+		t.Error("NoActionReason is empty, expected hash mismatch message")
+	}
+	// Verify the error message mentions multiple hashes
+	if !strings.Contains(result.NoActionReason, "expected one of") {
+		t.Errorf("NoActionReason = %q, expected it to mention 'expected one of'", result.NoActionReason)
+	}
+}
+
+func TestApplierMatchModeThreeHashesMiddleMatches(t *testing.T) {
+	tmpDir := t.TempDir()
+	mock := git.NewMockOperations()
+	existingContent := []byte("existing content\n")
+	newContent := []byte("new content\n")
+
+	// Create existing file
+	testDir := filepath.Join(tmpDir, "test")
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatalf("failed to create test dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "file.txt"), existingContent, 0644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	// Calculate the correct hash and create a list with it in the middle
+	expectedHash := hash.SHA256Bytes(existingContent)
+
+	cfg := &config.Config{
+		Mode:         config.ModeMatch,
+		RepoPath:     "test/file.txt",
+		NewFile:      "/path/to/new.txt",
+		Repo:         tmpDir,
+		Remote:       "origin",
+		ExpectSHA256: "hash1," + expectedHash + ",hash3",
+	}
+
+	applier := NewApplier(cfg, mock, newContent)
+	result, err := applier.Run()
+
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Action != "updated" {
+		t.Errorf("Action = %q, want %q (should match middle hash)", result.Action, "updated")
+	}
+}
+

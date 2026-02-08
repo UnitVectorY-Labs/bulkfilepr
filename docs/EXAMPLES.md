@@ -38,6 +38,20 @@ bulkfilepr apply \
   --expect-sha256 4b7c0e1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e
 ```
 
+### Update If Hash Matches Any of Multiple Versions
+
+Update a file if it matches any of several known baseline versions:
+
+```bash
+bulkfilepr apply \
+  --mode match \
+  --repo-path .github/workflows/ci.yml \
+  --new-file ~/standards/ci-v3.yml \
+  --expect-sha256 17ca04878ed554fc89bc73332e013fa8528c7999352a7cea17788e48fecabac6,6bbb6e1ef2fbd220c4dc6853dc40d80e1d060b32f3dfae245f2f4dc8858ccfa1
+```
+
+This is useful when you want to upgrade from multiple previous versions (e.g., v1 or v2) to a new version (v3).
+
 ## Dry Run Examples
 
 ### Preview Changes Without Making Them
@@ -205,6 +219,24 @@ bulkfilepr apply \
 ```
 
 This ensures only repos with the v1 workflow get upgraded to v2, leaving repos with custom modifications untouched.
+
+### Rolling Update from Multiple Baseline Versions
+
+Update repos that have any of several known baseline versions:
+
+```bash
+# v1 and v2 hashes
+V1_HASH="4b7c0e1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e"
+V2_HASH="17ca04878ed554fc89bc73332e013fa8528c7999352a7cea17788e48fecabac6"
+
+bulkfilepr apply \
+  --mode match \
+  --repo-path .github/workflows/ci.yml \
+  --new-file ~/standards/ci-v3.yml \
+  --expect-sha256 "$V1_HASH,$V2_HASH"
+```
+
+This upgrades repos that have either v1 or v2 to v3, while leaving customized versions untouched.
 
 ## Working with Different Remotes
 

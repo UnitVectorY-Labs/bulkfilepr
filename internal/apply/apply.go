@@ -3,6 +3,7 @@ package apply
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/UnitVectorY-Labs/bulkfilepr/internal/config"
 	"github.com/UnitVectorY-Labs/bulkfilepr/internal/git"
@@ -207,9 +208,24 @@ func (a *Applier) evaluateMode() (bool, string, error) {
 			return false, "", fmt.Errorf("failed to read existing file: %w", err)
 		}
 		existingHash := hash.SHA256Bytes(existingContent)
-		if existingHash != a.cfg.ExpectSHA256 {
-			return false, fmt.Sprintf("file hash mismatch: expected %s, got %s", a.cfg.ExpectSHA256, existingHash), nil
+		
+		// Check if the existing hash matches any of the expected hashes
+		expectedHashes := a.cfg.GetExpectedHashes()
+		hashMatches := false
+		for _, expectedHash := range expectedHashes {
+			if existingHash == expectedHash {
+				hashMatches = true
+				break
+			}
 		}
+		
+		if !hashMatches {
+			if len(expectedHashes) == 1 {
+				return false, fmt.Sprintf("file hash mismatch: expected %s, got %s", expectedHashes[0], existingHash), nil
+			}
+			return false, fmt.Sprintf("file hash mismatch: expected one of [%s], got %s", strings.Join(expectedHashes, ", "), existingHash), nil
+		}
+		
 		if bytes.Equal(existingContent, a.newContent) {
 			return false, "file content is already identical", nil
 		}
