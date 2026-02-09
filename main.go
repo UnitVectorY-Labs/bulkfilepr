@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/UnitVectorY-Labs/bulkfilepr/internal/apply"
 	"github.com/UnitVectorY-Labs/bulkfilepr/internal/config"
@@ -19,6 +20,15 @@ const (
 )
 
 func main() {
+	// Set the build version from the build info if not set by the build system
+	if Version == "dev" || Version == "" {
+		if bi, ok := debug.ReadBuildInfo(); ok {
+			if bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+				Version = bi.Main.Version
+			}
+		}
+	}
+
 	os.Exit(run(os.Args[1:]))
 }
 
@@ -195,4 +205,3 @@ func printResult(cfg *config.Config, result *apply.Result) {
 		fmt.Printf("PR URL: %s\n", result.PRURL)
 	}
 }
-
