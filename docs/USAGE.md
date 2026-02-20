@@ -1,4 +1,11 @@
-# bulkfilepr Usage Guide
+---
+layout: default
+title: Usage
+nav_order: 3
+permalink: /usage
+---
+
+# Usage
 
 ## Command Structure
 

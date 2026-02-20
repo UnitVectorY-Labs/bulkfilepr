@@ -1,4 +1,11 @@
-# bulkfilepr Examples
+---
+layout: default
+title: Examples
+nav_order: 4
+permalink: /examples
+---
+
+# Examples
 
 This guide contains distinct, copy-paste-ready examples for common `bulkfilepr` workflows.
 

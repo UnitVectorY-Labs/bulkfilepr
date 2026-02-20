@@ -1,4 +1,11 @@
-# Installing bulkfilepr
+---
+layout: default
+title: Install
+nav_order: 2
+permalink: /install
+---
+
+# Install
 
 ## Prerequisites
 

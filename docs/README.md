@@ -1,4 +1,11 @@
-# bulkfilepr Documentation
+---
+layout: default
+title: bulkfilepr
+nav_order: 1
+permalink: /
+---
+
+# bulkfilepr
 
 Welcome to the bulkfilepr documentation. bulkfilepr is a command-line tool for batch-updating standardized files across many local GitHub repositories.
 
