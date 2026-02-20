@@ -48,8 +48,6 @@ gh auth login
 
 ### From Source (Go)
 
-If you have Go 1.21 or later installed:
-
 ```bash
 go install github.com/UnitVectorY-Labs/bulkfilepr@latest
 ```
