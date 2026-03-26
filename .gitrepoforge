@@ -1,0 +1,11 @@
+name: bulkfilepr
+default_branch: main
+config:
+  description: "Batch-update one or more standardized files across many local GitHub repositories, then commit the changes on a new branch and open pull requests back to each repository's default branch."
+  license: MIT
+  language: go
+  release: release-go
+  justfile: true
+  docs:
+    enabled: true
+    domain: bulkfilepr.unitvectorylabs.com
