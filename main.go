@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -155,9 +156,11 @@ func run(args []string) int {
 	return exitSuccess
 }
 
+var semverRe = regexp.MustCompile(`^\d+\.\d+\.\d+`)
+
 func versionString() string {
 	version := Version
-	if !strings.HasPrefix(version, "v") {
+	if semverRe.MatchString(version) && !strings.HasPrefix(version, "v") {
 		version = "v" + version
 	}
 	return fmt.Sprintf("bulkfilepr version %s (%s, %s/%s)", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
