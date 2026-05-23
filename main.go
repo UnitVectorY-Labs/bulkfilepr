@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/debug"
+	"strings"
 
 	"github.com/UnitVectorY-Labs/bulkfilepr/internal/apply"
 	"github.com/UnitVectorY-Labs/bulkfilepr/internal/config"
@@ -62,7 +64,7 @@ func run(args []string) int {
 	if args[0] == "apply" {
 		args = args[1:]
 	} else if args[0] == "-version" || args[0] == "--version" {
-		fmt.Printf("bulkfilepr version %s\n", Version)
+		fmt.Println(versionString())
 		return exitSuccess
 	} else if args[0] != "-h" && args[0] != "--help" && args[0] != "-help" {
 		fmt.Fprintf(os.Stderr, "Error: unknown command %q\n", args[0])
@@ -79,7 +81,7 @@ func run(args []string) int {
 	}
 
 	if *showVersion {
-		fmt.Printf("bulkfilepr version %s\n", Version)
+		fmt.Println(versionString())
 		return exitSuccess
 	}
 
@@ -89,6 +91,7 @@ func run(args []string) int {
 		printUsage(fs)
 		return exitInvalidUsage
 	}
+
 	if *repoPath == "" {
 		fmt.Fprintln(os.Stderr, "Error: --repo-path is required")
 		printUsage(fs)
@@ -150,6 +153,14 @@ func run(args []string) int {
 	// Print result
 	printResult(cfg, result)
 	return exitSuccess
+}
+
+func versionString() string {
+	version := Version
+	if !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+	return fmt.Sprintf("bulkfilepr version %s (%s, %s/%s)", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 }
 
 func printUsage(fs *flag.FlagSet) {
