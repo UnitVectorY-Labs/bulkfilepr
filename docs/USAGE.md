@@ -31,7 +31,7 @@ bulkfilepr uses a single `apply` command with various options to control its beh
 | `--dry-run` | - | No | Perform checks only, make no actual changes |
 | `--remote` | `<name>` | No | Git remote name to push to (default: `origin`) |
 | `--expect-sha256` | `<hex>` | Conditional | Expected SHA-256 hash (required when `--mode match`). Multiple hashes can be comma-separated to match any of them |
-| `--version` | - | No | Print version number and exit |
+| `--version` | - | No | Print version/build info and exit |
 
 ## Update Modes
 

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -78,5 +80,30 @@ func TestRunApplyHelp(t *testing.T) {
 	exitCode := run([]string{"apply", "-h"})
 	if exitCode != exitSuccess {
 		t.Errorf("run([apply -h]) = %d, want %d", exitCode, exitSuccess)
+	}
+}
+
+func TestVersionStringWithPrefixedVersion(t *testing.T) {
+	originalVersion := Version
+	t.Cleanup(func() { Version = originalVersion })
+	Version = "v1.2.3"
+
+	got := versionString()
+	want := "bulkfilepr version v1.2.3 (" + runtime.Version() + ", " + runtime.GOOS + "/" + runtime.GOARCH + ")"
+
+	if got != want {
+		t.Errorf("versionString() = %q, want %q", got, want)
+	}
+}
+
+func TestVersionStringAddsVPrefixWhenMissing(t *testing.T) {
+	originalVersion := Version
+	t.Cleanup(func() { Version = originalVersion })
+	Version = "1.2.3"
+
+	got := versionString()
+
+	if !strings.HasPrefix(got, "bulkfilepr version v1.2.3 ") {
+		t.Errorf("versionString() = %q, want prefix %q", got, "bulkfilepr version v1.2.3 ")
 	}
 }
