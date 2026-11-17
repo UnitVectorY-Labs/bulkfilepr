@@ -30,7 +30,7 @@ bulkfilepr uses a single `apply` command with various options to control its beh
 | `--draft` | - | No | Create the PR as a draft |
 | `--dry-run` | - | No | Perform checks only, make no actual changes |
 | `--remote` | `<name>` | No | Git remote name to push to (default: `origin`) |
-| `--expect-sha256` | `<hex>` | Conditional | Expected SHA-256 hash (required when `--mode match`). Multiple hashes can be comma-separated to match any of them |
+| `--expect-sha256` | `<hex>` | Conditional | Expected SHA-256 hash (required when `--mode match`). Repeat the flag or comma-separate hashes to match any of them |
 | `--version` | - | No | Print version/build info and exit |
 
 ## Update Modes
@@ -48,7 +48,7 @@ Only update if the file already exists at the destination path. If the file is m
 **Use case**: Updating existing configuration files without creating them in repositories that don't have them.
 
 ### `match`
-Only update if the file exists AND its SHA-256 hash matches one of the values provided in `--expect-sha256`. This ensures you only update files at specific known versions. Multiple comma-separated hashes can be provided to match any of several versions.
+Only update if the file exists AND its SHA-256 hash matches one of the values provided in `--expect-sha256`. This ensures you only update files at specific known versions. Repeated flags and comma-separated hashes can be combined to match any of several versions.
 
 **Use case**: Safely updating files when you need to verify they haven't been customized from known baselines.
 
@@ -129,7 +129,7 @@ If any of these checks fail, bulkfilepr exits with a non-zero exit code.
 
 ## Dry Run Mode
 
-The `--dry-run` flag is a critical safety feature that performs all checks and reports what would happen, but makes no actual changes:
+The `--dry-run` flag is a critical safety feature that performs all checks and reports what would happen, without writing files, committing, pushing, or creating PRs (it may switch a clean checkout to the default branch):
 
 **What dry run does**:
 - ✅ Detects default branch
@@ -140,7 +140,7 @@ The `--dry-run` flag is a critical safety feature that performs all checks and r
 - ✅ Reports what would be updated
 
 **What dry run does NOT do**:
-- ❌ Does not switch branches
+- May switch a clean checkout to the default branch before evaluating the update
 - ❌ Does not create branches
 - ❌ Does not write files
 - ❌ Does not stage, commit, or push
@@ -203,3 +203,30 @@ PR URL: https://github.com/owner/repo/pull/123
 - `branch already exists (idempotent - no action taken)` - Branch exists, assuming previous success
 
 Each action includes relevant context like branch name, reason for no action, or PR URL.
+
+## Help and automation
+
+Run `bulkfilepr --help` or `bulkfilepr apply --help` for complete instructions,
+examples, prerequisites, defaults, and exit codes. Operate on one local repository
+per invocation. Install git and gh, authenticate with `gh auth login`, and ensure
+push/PR permissions and a clean checkout. Fetch refs before running if remote
+branch detection must be current; bulkfilepr does not fetch or pull.
+
+Usage errors are concise and go to stderr rather than printing the full help.
+Unknown flags, missing flag values, and positional arguments exit with code 2.
+Git/gh failures include the command, exit status, and a single-line diagnostic
+limited to 500 characters (plus an ellipsis if truncated).
+Results go to stdout; inspect `Action` and `Reason`, since exit 0 includes skipped
+updates and does not necessarily mean a PR was created.
+
+For multiple allowed existing versions, supply full lowercase SHA-256 hashes:
+
+```bash
+bulkfilepr apply --repo ./my-repo --mode match --repo-path config.yml \
+  --new-file ./config.yml --expect-sha256 "$OLD_HASH_1" \
+  --expect-sha256 "$OLD_HASH_2" --dry-run
+```
+
+Compute each hash from the old file with `sha256sum FILE` or `shasum -a 256 FILE`.
+Repeated flags accumulate rather than replace earlier values; comma-separated
+values remain supported. Remove `--dry-run` to commit, push, and open a PR.

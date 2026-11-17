@@ -1,8 +1,10 @@
 package git
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -163,5 +165,13 @@ func TestWriteFilePermissionError(t *testing.T) {
 	err := WriteFile(readOnlyDir, "test.txt", []byte("content"))
 	if err == nil {
 		t.Error("WriteFile() expected error for read-only directory, got nil")
+	}
+}
+
+func TestCommandErrorIsConcise(t *testing.T) {
+	err := commandError("gh", []string{"pr", "create", "--body", "private body"}, []byte("failure\n"+strings.Repeat("x", 600)), fmt.Errorf("exit status 1"))
+	message := err.Error()
+	if !strings.Contains(message, "gh pr failed: exit status 1: failure") || !strings.HasSuffix(message, "...") || strings.Contains(message, "\n") || strings.Contains(message, "private body") {
+		t.Fatalf("unexpected diagnostic: %s", message)
 	}
 }

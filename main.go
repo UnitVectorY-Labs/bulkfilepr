@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"runtime"
@@ -38,6 +39,14 @@ func main() {
 func run(args []string) int {
 	fs := flag.NewFlagSet("bulkfilepr", flag.ContinueOnError)
 
+	fs.Usage = func() {}
+	fs.SetOutput(io.Discard)
+	var expectSHA256 []string
+	fs.Func("expect-sha256", "Allowed existing SHA-256; repeat or comma-separate", func(value string) error {
+		expectSHA256 = append(expectSHA256, value)
+		return nil
+	})
+
 	// Define flags
 	var (
 		mode          = fs.String("mode", "", "Update mode: upsert, exists, or match (required)")
@@ -51,13 +60,12 @@ func run(args []string) int {
 		draft         = fs.Bool("draft", false, "Create PR as draft")
 		dryRun        = fs.Bool("dry-run", false, "Perform checks only, no changes")
 		remote        = fs.String("remote", "origin", "Git remote name")
-		expectSHA256  = fs.String("expect-sha256", "", "Expected SHA-256 hash (required for match mode)")
 		showVersion   = fs.Bool("version", false, "Print version")
 	)
 
 	// Check for subcommand
 	if len(args) == 0 {
-		printUsage(fs)
+		fmt.Fprintln(os.Stderr, "Run bulkfilepr --help for usage.")
 		return exitInvalidUsage
 	}
 
@@ -69,15 +77,22 @@ func run(args []string) int {
 		return exitSuccess
 	} else if args[0] != "-h" && args[0] != "--help" && args[0] != "-help" {
 		fmt.Fprintf(os.Stderr, "Error: unknown command %q\n", args[0])
-		fmt.Fprintf(os.Stderr, "Usage: bulkfilepr apply [options]\n")
+		fmt.Fprintln(os.Stderr, "Run bulkfilepr --help for usage.")
 		return exitInvalidUsage
 	}
 
 	// Parse flags
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {
+			printUsage(fs)
 			return exitSuccess
 		}
+		fmt.Fprintf(os.Stderr, "Error: %v; run bulkfilepr --help for usage.\n", err)
+		return exitInvalidUsage
+	}
+
+	if fs.NArg() != 0 {
+		fmt.Fprintf(os.Stderr, "Error: unexpected argument %q; put all options before positional arguments (none are accepted).\n", fs.Arg(0))
 		return exitInvalidUsage
 	}
 
@@ -89,18 +104,18 @@ func run(args []string) int {
 	// Validate required flags
 	if *mode == "" {
 		fmt.Fprintln(os.Stderr, "Error: --mode is required")
-		printUsage(fs)
+		fmt.Fprintln(os.Stderr, "Run bulkfilepr --help for usage.")
 		return exitInvalidUsage
 	}
 
 	if *repoPath == "" {
 		fmt.Fprintln(os.Stderr, "Error: --repo-path is required")
-		printUsage(fs)
+		fmt.Fprintln(os.Stderr, "Run bulkfilepr --help for usage.")
 		return exitInvalidUsage
 	}
 	if *newFile == "" {
 		fmt.Fprintln(os.Stderr, "Error: --new-file is required")
-		printUsage(fs)
+		fmt.Fprintln(os.Stderr, "Run bulkfilepr --help for usage.")
 		return exitInvalidUsage
 	}
 
@@ -124,7 +139,7 @@ func run(args []string) int {
 		Draft:         *draft,
 		DryRun:        *dryRun,
 		Remote:        *remote,
-		ExpectSHA256:  *expectSHA256,
+		ExpectSHA256:  strings.Join(expectSHA256, ","),
 	}
 
 	// Validate config
@@ -167,32 +182,50 @@ func versionString() string {
 }
 
 func printUsage(fs *flag.FlagSet) {
-	fmt.Fprintln(os.Stderr, "Usage: bulkfilepr apply [options]")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Batch-update standardized files across repositories.")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Required options:")
-	fmt.Fprintln(os.Stderr, "  --mode <mode>         Update mode: upsert, exists, or match")
-	fmt.Fprintln(os.Stderr, "  --repo-path <path>    Destination file path inside the repo")
-	fmt.Fprintln(os.Stderr, "  --new-file <path>     Path to the new file content")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Optional options:")
-	fmt.Fprintln(os.Stderr, "  --repo <dir>          Repository directory (default: .)")
-	fmt.Fprintln(os.Stderr, "  --branch <name>       Branch name (auto-generated if empty)")
-	fmt.Fprintln(os.Stderr, "  --commit-message <msg> Commit message")
-	fmt.Fprintln(os.Stderr, "  --pr-title <title>    PR title")
-	fmt.Fprintln(os.Stderr, "  --pr-body <body>      PR body")
-	fmt.Fprintln(os.Stderr, "  --draft               Create PR as draft")
-	fmt.Fprintln(os.Stderr, "  --dry-run             Perform checks only, no changes")
-	fmt.Fprintln(os.Stderr, "  --remote <name>       Git remote name (default: origin)")
-	fmt.Fprintln(os.Stderr, "  --expect-sha256 <hex> Expected SHA-256 (required for match mode)")
-	fmt.Fprintln(os.Stderr, "                        Multiple hashes can be comma-separated")
-	fmt.Fprintln(os.Stderr, "  --version             Print version")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Modes:")
-	fmt.Fprintln(os.Stderr, "  upsert  - Always write (create if missing, update if exists)")
-	fmt.Fprintln(os.Stderr, "  exists  - Only update if file already exists")
-	fmt.Fprintln(os.Stderr, "  match   - Only update if file exists and matches expected hash")
+	fmt.Fprintln(os.Stderr, `Usage: bulkfilepr apply --mode <mode> --repo-path <path> --new-file <path> [options]
+       bulkfilepr --help | --version
+
+Update one file in one local GitHub repository, commit, push, and open a PR.
+Run once per repository for bulk updates. Requires git, authenticated gh (gh auth
+login), a clean working tree, and push/PR permissions. Fetch refs beforehand:
+branch existence checks use local and cached remote refs; no fetch/pull is done.
+
+Required:
+  --mode <mode>          upsert: create or update; exists: update only if present;
+                         match: update only if existing bytes match any allowed hash
+  --repo-path <path>     Destination relative to repository root
+  --new-file <path>      Replacement content; relative to process working directory
+
+Options:
+  --repo <dir>           Local repository directory (default: .)
+  --expect-sha256 <hex>  Required for match; SHA-256 of EXISTING content, lowercase hex
+                         Repeat this flag or comma-separate hashes (any may match)
+  --branch <name>        Default: bulkfilepr/<first 12 hex of replacement SHA-256>
+  --commit-message <msg> Default: chore: update <repo-path>
+  --pr-title <title>     Default: Update <repo-path>
+  --pr-body <body>       Default: This PR updates the standardized file at <repo-path>.
+  --draft               Create a draft PR
+  --remote <name>        Push remote (default: origin)
+  --dry-run             Check and report without writing, committing, pushing, or PR
+                         creation; may switch a clean checkout to the default branch
+  --help, -h            Show this help (also: bulkfilepr apply --help)
+  --version             Print version/build info
+
+Behavior:
+  Uses the default branch reported by gh; switches to it if the checkout is clean.
+  Identical content, unmet mode conditions, or an existing branch are successful
+  no-ops. An existing branch is assumed complete; its PR is not verified.
+  After updating, switches back to the default branch (best effort).
+
+Examples:
+  bulkfilepr apply --repo ./my-repo --mode upsert --repo-path .github/CODEOWNERS --new-file ./CODEOWNERS --dry-run
+  bulkfilepr apply --repo ./my-repo --mode match --repo-path config.yml --new-file ./config.yml --expect-sha256 <old-hash-1> --expect-sha256 <old-hash-2>
+  Replace <old-hash-N> with full 64-character hashes; compute with sha256sum FILE
+  or shasum -a 256 FILE. Remove --dry-run to commit, push, and create a PR.
+
+Output: stdout reports Action, Reason (for no-ops), Branch, and PR URL as applicable.
+Errors go to stderr. Exit codes: 0 success (including no-op/dry-run/help/version),
+1 operational failure (file, repository, git/gh, push, or PR), 2 invalid usage.`)
 }
 
 func printResult(cfg *config.Config, result *apply.Result) {

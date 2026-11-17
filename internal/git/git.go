@@ -33,6 +33,21 @@ type Operations interface {
 	CreatePR(base, head, title, body string, draft bool) (string, error)
 }
 
+// commandError keeps diagnostics compact without echoing potentially long arguments.
+func commandError(command string, args []string, output []byte, err error) error {
+	if len(args) > 0 {
+		command += " " + args[0]
+	}
+	diagnostic := []rune(strings.Join(strings.Fields(string(output)), " "))
+	if len(diagnostic) > 500 {
+		diagnostic = append(diagnostic[:500], []rune("...")...)
+	}
+	if len(diagnostic) == 0 {
+		return fmt.Errorf("%s failed: %w", command, err)
+	}
+	return fmt.Errorf("%s failed: %w: %s", command, err, string(diagnostic))
+}
+
 // RealOperations implements Operations using actual git and gh commands.
 type RealOperations struct {
 	// RepoDir is the repository directory to operate on.
@@ -50,7 +65,7 @@ func (r *RealOperations) runGit(args ...string) (string, error) {
 	cmd.Dir = r.RepoDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(output), fmt.Errorf("git %s failed: %w\nOutput: %s", strings.Join(args, " "), err, output)
+		return string(output), commandError("git", args, output, err)
 	}
 	return strings.TrimSpace(string(output)), nil
 }
@@ -61,7 +76,7 @@ func (r *RealOperations) runGH(args ...string) (string, error) {
 	cmd.Dir = r.RepoDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(output), fmt.Errorf("gh %s failed: %w\nOutput: %s", strings.Join(args, " "), err, output)
+		return string(output), commandError("gh", args, output, err)
 	}
 	return strings.TrimSpace(string(output)), nil
 }
